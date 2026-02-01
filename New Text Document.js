@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         YouTube Liquid Glass Speed Control
-// @namespace    http://tampermonkey.net/
-// @version      5.0
-// @description  Transparent, "Liquid Glass" style speed control for YouTube
+// @namespace    https://github.com/RandunLabz/
+// @version      1.0
+// @description  A modern, transparent speed control overlay for YouTube with "Liquid Glass" aesthetics. Auto-hides with player controls.
 // @author       Randun Labz
+// @license      MIT
 // @match        https://www.youtube.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
 // @grant        none
@@ -217,5 +218,6 @@
     }
 
     setInterval(init, 1000);
+
 
 })();
