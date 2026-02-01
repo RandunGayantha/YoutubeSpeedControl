@@ -14,7 +14,7 @@ A modern, transparent, speed control overlay for YouTube.
 ## How to Install
 
 1.  Install the [Tampermonkey](https://www.tampermonkey.net/) extension for your browser.
-2.  **[CLICK HERE TO INSTALL THE SCRIPT](https://raw.githubusercontent.com/RandunGayantha/YoutubeSpeedControl/refs/heads/main/New%20Text%20Document.js)**.
+2.  **[CLICK HERE TO INSTALL THE SCRIPT](https://greasyfork.org/en/scripts/564770-youtube-liquid-glass-speed-control)**.
 3.  Confirm the installation.
 
 ## Usage
