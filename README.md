@@ -1,6 +1,6 @@
 # YouTube Liquid Glass Speed Control
 
-A modern, transparent, "Apple-style" speed control overlay for YouTube. 
+A modern, transparent, speed control overlay for YouTube. 
 
 ## Features
 * **Liquid Glass Design:** Blurs the background to blend perfectly with the video.
