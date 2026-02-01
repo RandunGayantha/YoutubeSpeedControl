@@ -2,6 +2,9 @@
 
 A modern, transparent, speed control overlay for YouTube. 
 
+![speedControl](https://github.com/user-attachments/assets/2586a405-ffe2-4717-8d17-431ca8813fda)
+
+
 ## Features
 * **Liquid Glass Design:** Blurs the background to blend perfectly with the video.
 * **Auto-Hide:** Controls fade out automatically when the YouTube interface hides.
