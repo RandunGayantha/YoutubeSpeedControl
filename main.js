@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         YouTube Liquid Glass Speed Control
 // @namespace    https://github.com/RandunGayantha
-// @version      1.0
-// @description  A modern, transparent speed control overlay for YouTube with "Liquid Glass" aesthetics. Auto-hides with player controls.
+// @version      1.1
+// @description  A modern, transparent speed control overlay for YouTube with "Liquid Glass" aesthetics. Auto-hides with player controls. Persists speed across playlist videos, no listener leaks.
 // @author       Randun Labz
 // @license      MIT
 // @match        https://www.youtube.com/*
@@ -14,12 +14,24 @@
     'use strict';
 
     // Script created by Randun Labz
+    // v1.1 changelog:
+    //  - Fixed: playlist "next video" not inheriting the speed you set (panel survived
+    //    SPA navigation, so the old code skipped re-applying saved speed to the new
+    //    <video> element).
+    //  - Fixed: a fresh 'ratechange' listener was being stacked on the video every
+    //    second forever -> hundreds of duplicate listeners over time -> the lag you saw.
+    //    Listeners are now attached exactly once per video element.
+    //  - Added: listens to YouTube's own 'yt-navigate-finish' SPA event so the panel
+    //    reacts to video changes instantly instead of waiting on the next poll tick.
+    //  - Lowered poll frequency since per-tick work is now cheap (no more DOM listener
+    //    churn), which further reduces overhead.
 
     const CONFIG = {
         step: 0.25,
         minSpeed: 0.25,
         maxSpeed: 8.0,
-        storageKey: 'yt_speed_liquid_pref'
+        storageKey: 'yt_speed_liquid_pref',
+        pollMs: 1500
     };
 
     // --- CSS: Apple "Liquid Glass" Aesthetic ---
@@ -37,7 +49,7 @@
             gap: 8px;
             align-items: center;
             padding: 14px 8px;
-            
+
             /* The "Liquid Glass" Effect */
             background: rgba(30, 30, 30, 0.2); /* Extremely transparent dark tint */
             backdrop-filter: blur(20px) saturate(180%); /* Heavy blur + vibrancy */
@@ -45,7 +57,7 @@
             border-radius: 40px; /* Smooth pill shape */
             border: 1px solid rgba(255, 255, 255, 0.12); /* Subtle frost border */
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15); /* Soft depth shadow */
-            
+
             /* Animations */
             opacity: 1;
             transition: opacity 0.3s cubic-bezier(0.25, 0.1, 0.25, 1), transform 0.3s;
@@ -127,6 +139,8 @@
     `;
     document.head.appendChild(style);
 
+    // Tracks the <video> element we're currently wired up to, so we can detect
+    // when YouTube swaps in a new one (playlist advance, related video, etc.)
     let currentVideo = null;
 
     function createOverlay() {
@@ -147,7 +161,7 @@
         };
 
         // --- Layout ---
-        
+
         // Top: Increase
         container.appendChild(createBtn('+', () => changeSpeed(CONFIG.step)));
 
@@ -194,31 +208,65 @@
         if (display) display.textContent = speed + 'x';
     }
 
+    function getSavedSpeed() {
+        const saved = parseFloat(localStorage.getItem(CONFIG.storageKey));
+        return isNaN(saved) ? null : saved;
+    }
+
+    // Named handler so we can recognize (and never double-attach) it per video element.
+    function onRateChange(e) {
+        const video = e.target;
+        const spd = Math.round(video.playbackRate * 100) / 100;
+        updateDisplay(spd);
+    }
+
+    function attachToVideo(video) {
+        // Guard against attaching the ratechange listener more than once to the
+        // same element — this is what was causing the growing lag.
+        if (video.dataset.speedControlAttached === '1') return;
+        video.addEventListener('ratechange', onRateChange);
+        video.dataset.speedControlAttached = '1';
+    }
+
     function init() {
-        const player = document.querySelector('#movie_player'); 
+        const player = document.querySelector('#movie_player');
         const video = document.querySelector('video');
 
-        if (player && video) {
-            currentVideo = video;
+        if (!player || !video) return;
 
-            if (!document.querySelector('#yt-speed-panel')) {
-                player.appendChild(createOverlay());
-                
-                const saved = parseFloat(localStorage.getItem(CONFIG.storageKey));
-                if (saved) {
-                    setTimeout(() => setSpeed(saved), 500);
-                }
+        // Panel can survive SPA navigation (player container persists), so make
+        // sure it exists without recreating it unnecessarily.
+        if (!document.querySelector('#yt-speed-panel')) {
+            player.appendChild(createOverlay());
+        }
+
+        // Video element changed (playlist advance, autoplay next, user clicked
+        // another video) — this is the real signal we care about, not just
+        // "does the panel exist".
+        const videoChanged = video !== currentVideo;
+        currentVideo = video;
+        attachToVideo(video);
+
+        if (videoChanged) {
+            const saved = getSavedSpeed();
+            if (saved) {
+                // Slight delay so YouTube's own player init doesn't stomp on it.
+                setTimeout(() => setSpeed(saved), 300);
+            } else {
+                updateDisplay(Math.round(video.playbackRate * 100) / 100);
             }
-
-            video.addEventListener('ratechange', () => {
-                const spd = Math.round(video.playbackRate * 100) / 100;
-                updateDisplay(spd);
-            });
         }
     }
 
-    setInterval(init, 1000);
+    // React instantly to YouTube's own SPA navigation event (fires on playlist
+    // advance, clicking a related video, back/forward nav, etc.) instead of
+    // waiting for the next poll tick.
+    document.addEventListener('yt-navigate-finish', init);
 
+    // Lightweight fallback poll — cheap now that init() no longer does DOM
+    // listener churn every tick, just in case the nav event doesn't fire
+    // (e.g. very first load).
+    setInterval(init, CONFIG.pollMs);
+    init();
 
 })();
-
